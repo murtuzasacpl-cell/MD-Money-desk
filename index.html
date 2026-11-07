@@ -206,7 +206,7 @@ var THIS_MONTH = mkey(TODAY);
 var state = null;
 try{ state = JSON.parse(document.getElementById("state").textContent); }catch(e){ state = null; }
 if(!state){ try{ var ls = localStorage.getItem("money-desk-state"); if(ls) state = JSON.parse(ls); }catch(e){} }
-if(!state) state = seed();
+if(!state) state = {currency:"KES",sample:false,accounts:[],payments:[]};
 var uid = function(){return Math.random().toString(36).slice(2,10)};
 
 function seed(){
@@ -326,12 +326,13 @@ window.addEventListener("hashchange",function(){var h=location.hash.slice(1);if(
 function all(){return state.accounts.map(analyze)}
 function render(){
   if(LIC.status!=="ok"){renderLicence();return}
-  if(SEC&&!UNLOCKED){renderLogin();return}
+  if(!SEC){renderSetup();return}
+  if(!UNLOCKED){renderLogin();return}
   var rs=all();
   var lateCount={client:0,property:0,loan:0};
   rs.forEach(function(r){if(r.oldest) lateCount[r.a.kind]++});
   var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
-  var h='<header class="top"><div class="top-in"><div class="brand"><h1>MD Money Desk</h1><span class="sub">'+dLabel(TODAY)+'</span>'+
+  var h='<header class="top"><div class="top-in"><div class="brand"><h1>MD Money Desk</h1><span class="sub">'+(bizName()?esc(bizName())+' · ':'')+dLabel(TODAY)+'</span>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
     licPill()+'<button class="btn sm" data-act="backup">Backup</button>'+(SEC?'<button class="btn sm" data-act="logout">Log out</button>':'')+
@@ -350,7 +351,14 @@ function render(){
   document.getElementById("app").innerHTML=h;
 }
 
+function bizName(){return state.profile&&state.profile.name||""}
 function overview(rs){
+  if(!state.accounts.length){
+    return '<section class="card"><h2>Welcome'+(bizName()?', '+esc(bizName()):'')+'</h2>'+
+      '<p class="muted" style="margin:0">Start by adding the clients, properties and loans that money comes from or goes to. Your records stay on this device only.</p>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn primary" data-act="new" data-kind="client">+ Add client</button><button class="btn" data-act="new" data-kind="property">+ Add property</button><button class="btn" data-act="new" data-kind="loan">+ Add loan</button><button class="btn" data-view="import">Import from Excel</button></div>'+
+      '<p class="muted" style="font-size:13px;margin:0">Just looking around? <button class="btn link" data-act="load-sample">Fill with example data</button>. You can clear it later.</p></section>';
+  }
   var inR=rs.filter(function(r){return isIn(r.a)}), outR=rs.filter(function(r){return !isIn(r.a)});
   var owedToMe=sum(inR,"owedNow"), iOwe=sum(outR,"owedNow");
   var thisIn=sum(inR,"dueThisMonth"), thisOut=sum(outR,"dueThisMonth");
@@ -568,9 +576,10 @@ document.addEventListener("click",function(e){
   if(act==="backup"){backupDialog();return}
   if(act==="filter"){payFilter=t.dataset.f;render();return}
   if(act==="override"){e.stopPropagation();return}
+  if(act==="load-sample"){var sd=seed();sd.currency=state.currency;sd.profile=state.profile;state=sd;save();return}
   if(act==="clear-sample"){
     if(pendingDelete!=="sample"){pendingDelete="sample";t.textContent="Click again to clear all examples";return}
-    state={currency:state.currency,sample:false,accounts:[],payments:[]};pendingDelete=null;save();return;
+    state={currency:state.currency,profile:state.profile,sample:false,accounts:[],payments:[]};pendingDelete=null;save();return;
   }
   if(act==="del-pay"){
     if(pendingDelete!==id){pendingDelete=id;t.textContent="Click again";return}
@@ -635,7 +644,14 @@ document.addEventListener("submit",function(e){
     ca.closed=cm;ca.closedOn=document.getElementById("c-date").value||ymd(TODAY);ca.closeNote=document.getElementById("c-note").value.trim();
     save();detailDialog(ca.id);return;
   }
-  if(f.id==="loginform"){doLogin(document.getElementById("lg-pass").value);return}
+  if(f.id==="loginform"){doLogin();return}
+  if(f.id==="setupform"){doSetup();return}
+  if(f.id==="secuser"){
+    var nu=normUser(document.getElementById("su2-user").value);if(!validUser(nu,"su2-err"))return;
+    checkPass(document.getElementById("su2-cur").value).then(function(ok){if(!ok){document.getElementById("su2-err").textContent="Your current password is wrong.";return}SEC.user=nu;storeSec();render()});
+    return;
+  }
+  if(f.id==="secname"){state.profile=Object.assign({},state.profile||{},{name:document.getElementById("sn-name").value.trim().slice(0,80)});save();return}
   if(f.id==="secset"){setPassForm("ss-new","ss-rep","ss-err",null);return}
   if(f.id==="secchange"){setPassForm("sc-new","sc-rep","sc-err","sc-cur");return}
   if(f.id==="secremove"){removePass();return}
@@ -691,13 +707,14 @@ function pbk(pass,salt,iter){
 function normRec(c){return String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
 function newSec(pass){
   var rec="";var r=rnd(12);for(var i=0;i<12;i++){rec+=ALPH[r[i]%ALPH.length];if(i===3||i===7)rec+="-"}
-  var ns={iter:150000,salt:b64(rnd(16)),rsalt:b64(rnd(16)),mins:SEC&&SEC.mins!=null?SEC.mins:10};
+  var ns={iter:150000,salt:b64(rnd(16)),rsalt:b64(rnd(16)),mins:SEC&&SEC.mins!=null?SEC.mins:10,user:SEC&&SEC.user||""};
   return pbk(pass,ns.salt,ns.iter).then(function(h){ns.hash=h;return pbk(normRec(rec),ns.rsalt,ns.iter)}).then(function(h){ns.rhash=h;SEC=ns;storeSec();return rec});
 }
 function checkPass(p){return SEC?pbk(p,SEC.salt,SEC.iter).then(function(h){return h===SEC.hash}):Promise.resolve(true)}
 function showRecovery(rec){
   modal('<div class="dialog-h"><h2>Save your recovery code</h2></div>'+
     '<p style="margin:0">If you forget your password, this code lets you set a new one. Write it down or save it somewhere private. It is shown only now.</p>'+
+    (SEC&&SEC.user?'<p style="margin:0">Your username: <b>'+esc(SEC.user)+'</b></p>':'')+
     '<div class="reccode">'+rec+'</div>'+
     '<div class="actions"><button class="btn" data-act="copy-rec" data-code="'+rec+'">Copy</button><button class="btn primary" data-act="rec-done">I have saved it</button></div>');
 }
@@ -711,13 +728,44 @@ document.addEventListener("visibilitychange",function(){if(!document.hidden)idle
 function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">MD Money Desk</h1>'+inner+'</div>'}
 function renderLogin(){
   lockShell('<section class="card"><h2 style="font-size:17px">Log in</h2>'+
-    '<form class="stack" id="loginform"><label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
+    '<form class="stack" id="loginform">'+(SEC.user?'<label for="lg-user">Username<input id="lg-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>':'')+'<label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
     '<p class="err" id="lg-err"></p><div class="actions"><button type="button" class="btn link left" data-act="forgot">Forgot password?</button><button class="btn primary" type="submit">Log in</button></div></form></section>');
-  var f=document.getElementById("lg-pass");if(f)f.focus();
+  var f=document.getElementById("lg-user")||document.getElementById("lg-pass");if(f)f.focus();
 }
-function doLogin(p){
-  var err=document.getElementById("lg-err");err.textContent="Checking…";
-  checkPass(p).then(function(ok){if(!ok){err.textContent="Wrong password. Try again, or use Forgot password.";return}UNLOCKED=true;bumpIdle();render()});
+function normUser(u){return String(u||"").trim().toLowerCase()}
+function doLogin(){
+  var err=document.getElementById("lg-err"),ue=document.getElementById("lg-user"),p=document.getElementById("lg-pass").value;
+  err.textContent="Checking…";
+  checkPass(p).then(function(ok){
+    if(!ok||(SEC.user&&ue&&normUser(ue.value)!==SEC.user)){err.textContent="Wrong username or password. Try again, or use Forgot password.";return}
+    UNLOCKED=true;bumpIdle();render();
+  });
+}
+function renderSetup(){
+  lockShell('<section class="card"><h2 style="font-size:17px">Create your login</h2>'+
+    '<p class="muted" style="margin:0">Only you will be able to open your records on this device.</p>'+
+    '<form class="stack" id="setupform"><label for="su-name">Business or your name<input id="su-name" autocomplete="organization" value="'+esc(bizName())+'" placeholder="e.g. Kamau Holdings"></label>'+
+    '<label for="su-user">Username<input id="su-user" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="e.g. kamau"></label>'+
+    '<label for="su-pass">Password<input id="su-pass" type="password" autocomplete="new-password" required></label>'+
+    '<label for="su-rep">Repeat password<input id="su-rep" type="password" autocomplete="new-password" required></label>'+
+    '<p class="err" id="su-err"></p><div class="actions"><button class="btn primary" type="submit">Create login</button></div></form></section>');
+  var f=document.getElementById("su-user");if(f&&bizName())f.focus();else{f=document.getElementById("su-name");if(f)f.focus()}
+}
+function validUser(u,errEl){
+  if(!/^[a-z0-9._-]{3,30}$/.test(u)){document.getElementById(errEl).textContent="Username: 3 to 30 letters or numbers, no spaces. You can use . _ and -";return false}
+  return true;
+}
+function doSetup(){
+  var u=normUser(document.getElementById("su-user").value);if(!validUser(u,"su-err"))return;
+  var p=passPair("su-pass","su-rep","su-err");if(!p)return;
+  var nm=document.getElementById("su-name").value.trim().slice(0,80);
+  document.getElementById("su-err").textContent="Saving…";
+  SEC=SEC||null;
+  newSec(p).then(function(rec){
+    SEC.user=u;storeSec();
+    state.profile=Object.assign({},state.profile||{},{name:nm});
+    UNLOCKED=true;bumpIdle();save();showRecovery(rec);
+  });
 }
 function getReq(){var q=lsGet("md-money-req");if(!q){var r=rnd(4);q=String(100000+((r[0]<<16|r[1]<<8|r[2])%900000));lsSet("md-money-req",q)}return q}
 function renderForgot(){
@@ -790,16 +838,19 @@ function securityView(){
       '<label for="ss-rep">Repeat password<input id="ss-rep" type="password" autocomplete="new-password" required></label>'+
       '<p class="err full" id="ss-err"></p><div class="actions full"><button class="btn primary" type="submit">Turn on password lock</button></div></form></section>';
   } else {
-    h+='<section class="card"><div class="card-h"><h2>Password lock</h2><span class="pill good">On</span><div class="right"><button class="btn primary sm" data-act="logout">Log out now</button></div></div>'+
+    h+='<section class="card"><div class="card-h"><h2>Your login</h2><span class="pill good">'+(SEC.user?"Logged in as "+esc(SEC.user):"Password on")+'</span><div class="right"><button class="btn primary sm" data-act="logout">Log out now</button></div></div>'+
       '<label for="sec-mins" style="max-width:320px">Log out automatically when not used for<select id="sec-mins">'+[[5,"5 minutes"],[10,"10 minutes"],[30,"30 minutes"],[60,"1 hour"],[0,"Never"]].map(function(o){return '<option value="'+o[0]+'"'+(SEC.mins===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select></label></section>'+
       '<section class="card"><h2>Change password</h2><form class="form" id="secchange"><label class="full" for="sc-cur">Current password<input id="sc-cur" type="password" autocomplete="current-password" required></label>'+
       '<label for="sc-new">New password<input id="sc-new" type="password" autocomplete="new-password" required></label><label for="sc-rep">Repeat new password<input id="sc-rep" type="password" autocomplete="new-password" required></label>'+
       '<p class="hint full">You also get a new recovery code.</p><p class="err full" id="sc-err"></p><div class="actions full"><button class="btn primary" type="submit">Change password</button></div></form></section>'+
-      '<section class="card"><h2>Turn off password lock</h2><form class="form" id="secremove"><label class="full" for="sr-cur">Current password<input id="sr-cur" type="password" autocomplete="current-password" required></label>'+
-      '<p class="err full" id="sr-err"></p><div class="actions full"><button class="btn danger" type="submit">Turn off</button></div></form></section>';
+      '<section class="card"><h2>Change username</h2><form class="form" id="secuser"><label for="su2-user">New username<input id="su2-user" autocapitalize="none" spellcheck="false" required value="'+esc(SEC.user||"")+'"></label>'+
+      '<label for="su2-cur">Current password<input id="su2-cur" type="password" autocomplete="current-password" required></label>'+
+      '<p class="err full" id="su2-err"></p><div class="actions full"><button class="btn primary" type="submit">Save username</button></div></form></section>'+
+      '<section class="card"><h2>Business name</h2><form class="form" id="secname"><label class="full" for="sn-name">Shown at the top and on reports<input id="sn-name" value="'+esc(bizName())+'"></label>'+
+      '<div class="actions full"><button class="btn primary" type="submit">Save name</button></div></form></section>';
   }
   h+='<section class="card"><div class="card-h"><h2>Licence</h2>'+licPill()+'</div><p class="muted" style="margin:0">Device code <b class="num">'+LIC.dev+'</b>. To renew, tap the licence badge and paste the new key.</p></section>';
-  h+='<p class="muted" style="font-size:13px;margin:0">The password keeps other people out of the app on this device. Keep downloading backups (Backup button), because a password does not protect you from losing the phone.</p>';
+  h+='<p class="muted" style="font-size:13px;margin:0">Your login keeps other people out of the app on this device. Keep downloading backups (Backup button), because a password does not protect you from losing the phone.</p>';
   return h;
 }
 
@@ -913,7 +964,7 @@ function checkImport(){
 }
 function doImport(){
   var ok=(IMP.rows||[]).filter(function(r){return r.obj});if(!ok.length)return;
-  if(state.sample){state={currency:state.currency,sample:false,accounts:[],payments:[]}}
+  if(state.sample){state={currency:state.currency,profile:state.profile,sample:false,accounts:[],payments:[]}}
   ok.forEach(function(r){if(IMP.kind==="payments")state.payments.push(r.obj);else state.accounts.push(r.obj)});
   IMP.msg="Imported "+ok.length+" "+(ok.length===1?"row":"rows")+".";IMP.rows=null;IMP.text="";
   save();
@@ -969,7 +1020,7 @@ function amortize(a){
   return {r:r,rows:rows};
 }
 function buildReport(){
-  var k=REP.kind, gen="Made "+dLabel(new Date());
+  var k=REP.kind, gen=(bizName()?bizName()+" · ":"")+"Made "+dLabel(new Date());
   if(k==="daily"){
     var f=REP.from||ymd(TODAY),t=REP.to||f;if(t<f){var x=f;f=t;t=x}
     var ps=state.payments.filter(function(p){return p.date>=f&&p.date<=t&&acc(p.acc)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
