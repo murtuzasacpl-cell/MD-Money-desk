@@ -48,6 +48,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
 .logo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
 .logo svg{width:18px;height:18px;flex:none}
+.ver{font-weight:500;opacity:.8;font-variant-numeric:tabular-nums}
 .hello{display:flex;flex-direction:column;gap:2px;min-width:0}
 .hello h1{font-size:28px;line-height:1.1}
 .lic h1{font-size:30px;line-height:1.1}
@@ -347,7 +348,7 @@ function render(){
   var lateCount={client:0,property:0,lease:0,loan:0};
   rs.forEach(function(r){if(r.oldest) lateCount[grp(r.a)]++});
   var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["leases","Leases","lease"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
-  var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><span class="sub"><b>Welcome'+(personName()?', '+esc(personName()):'')+'</b> · <span id="clock">'+nowText()+'</span></span></div>'+
+  var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk <span class="ver">v'+APP_VERSION+'</span></span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><span class="sub"><b>Welcome'+(personName()?', '+esc(personName()):'')+'</b> · <span id="clock">'+nowText()+'</span></span></div>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
     licPill()+'<button class="btn sm" data-act="backup">Backup</button>'+(SEC?'<button class="btn sm" data-act="logout">Log out</button>':'')+
@@ -369,6 +370,7 @@ function render(){
 
 function bizName(){return state.profile&&state.profile.name||""}
 function personName(){var p=state.profile&&state.profile.person;if(p)return p;var u=SEC&&SEC.user||"";return u?u.charAt(0).toUpperCase()+u.slice(1):""}
+var APP_VERSION="1.8", APP_DATE="7 Nov 2026";
 var LOGO='<svg viewBox="0 0 192 192" aria-hidden="true"><rect width="192" height="192" rx="40" fill="#0d6b73"/><rect x="46" y="52" width="100" height="88" rx="12" fill="#fff"/><rect x="60" y="70" width="60" height="10" rx="5" fill="#1f7a45"/><rect x="60" y="92" width="44" height="10" rx="5" fill="#6a5acd"/><rect x="60" y="114" width="70" height="10" rx="5" fill="#1f7a45"/></svg>';
 function nowText(){var d=new Date();var t;try{t=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}catch(e){t=pad(d.getHours())+":"+pad(d.getMinutes())}
   var days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],months=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -760,7 +762,7 @@ function bumpIdle(){lastAct=Date.now();if(UNLOCKED&&lastAct-lastSaveAct>20000)st
 function idleCheck(){if(SEC&&UNLOCKED&&SEC.mins>0&&Date.now()-lastAct>SEC.mins*60000)lockNow()}
 setInterval(idleCheck,30000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck()});
-function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1>'+inner+'</div>'}
+function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk <span class="ver">v'+APP_VERSION+'</span></span><h1>'+esc(bizName()||"MD Money Desk")+'</h1>'+inner+'</div>'}
 function renderLogin(){
   lockShell('<section class="card"><h2 style="font-size:17px">Log in</h2>'+
     '<form class="stack" id="loginform">'+(SEC.user?'<label for="lg-user">Username<input id="lg-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>':'')+'<label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
@@ -814,7 +816,7 @@ function renderForgot(){
     '<section class="card"><h2 style="font-size:17px">No recovery code?</h2>'+
     '<p style="margin:0">Send these two numbers to '+esc(seller)+'. You will get a reset code back.</p>'+
     '<div class="kv"><div><span>Device code</span><b class="num">'+LIC.dev+'</b></div><div><span>Request number</span><b class="num">'+req+'</b></div></div>'+
-    '<a class="btn wa" href="'+waLink("Hello, I forgot my MD Money Desk password. Device code: "+LIC.dev+". Request number: "+req)+'" target="_blank" rel="noopener">Send on WhatsApp</a>'+
+    '<a class="btn wa" href="'+waLink("Hello, I forgot my MD Money Desk (v"+APP_VERSION+") password. Device code: "+LIC.dev+". Request number: "+req)+'" target="_blank" rel="noopener">Send on WhatsApp</a>'+
     '<form class="stack" id="resetform"><label for="rs-code">Reset code<input id="rs-code" autocomplete="off" spellcheck="false" required></label>'+
     '<label for="rs-new">New password<input id="rs-new" type="password" autocomplete="new-password" required></label>'+
     '<label for="rs-rep">Repeat new password<input id="rs-rep" type="password" autocomplete="new-password" required></label>'+
@@ -885,6 +887,7 @@ function securityView(){
       '<section class="card"><h2>Names</h2><form class="form" id="secname"><label for="sn-person">Your name (for the welcome)<input id="sn-person" value="'+esc(state.profile&&state.profile.person||"")+'"></label><label for="sn-name">Business name (big on reports)<input id="sn-name" value="'+esc(bizName())+'"></label>'+
       '<div class="actions full"><button class="btn primary" type="submit">Save names</button></div></form></section>';
   }
+  h+='<section class="card"><div class="card-h"><h2>App version</h2><span class="pill info">v'+APP_VERSION+'</span></div><p class="muted" style="margin:0">MD Money Desk version <b>'+APP_VERSION+'</b>, released '+APP_DATE+'. The app updates by itself when it is opened with internet.</p></section>';
   h+='<section class="card"><div class="card-h"><h2>Licence</h2>'+licPill()+'</div><p class="muted" style="margin:0">Device code <b class="num">'+LIC.dev+'</b>. To renew, tap the licence badge and paste the new key.</p></section>';
   h+='<p class="muted" style="font-size:13px;margin:0">Your login keeps other people out of the app on this device. Keep downloading backups (Backup button), because a password does not protect you from losing the phone.</p>';
   return h;
@@ -1161,7 +1164,7 @@ function reportsView(){
   return '<section class="card rp"><div class="card-h"><h2>Reports</h2></div>'+
     '<div class="filters">'+["daily","monthly","statement","loans"].map(function(x){return '<button class="chip" data-act="rp-kind" data-k="'+x+'" aria-pressed="'+(k===x)+'">'+names[x]+'</button>'}).join("")+'</div>'+
     '<div class="rp-controls">'+c+'</div></section>'+
-    '<section class="card rp"><div class="rp-head"><div><span class="logo">'+LOGO+'MD Money Desk</span>'+(bizName()?'<div class="rp-biz">'+esc(bizName())+'</div>':'')+'<h2>'+esc(R.title)+'</h2><span class="muted" style="font-size:13px">'+esc(R.sub)+'</span></div>'+
+    '<section class="card rp"><div class="rp-head"><div><span class="logo">'+LOGO+'MD Money Desk <span class="ver">v'+APP_VERSION+'</span></span>'+(bizName()?'<div class="rp-biz">'+esc(bizName())+'</div>':'')+'<h2>'+esc(R.title)+'</h2><span class="muted" style="font-size:13px">'+esc(R.sub)+'</span></div>'+
     '<div class="right"><button class="btn" data-act="rp-xlsx">Download Excel</button><button class="btn primary" data-act="rp-print">Print or save as PDF</button></div></div>'+
     reportHtml(R,false)+'</section>';
 }
@@ -1304,7 +1307,7 @@ function licBody(msg){
   return '<p style="margin:0">Send this device code to '+esc(seller)+'. You will get a licence key back.</p>'+
     '<div class="devcode num">'+LIC.dev+'</div>'+
     '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="lic-copy">Copy code</button>'+
-    '<a class="btn wa" href="'+waLink("Hello, I would like a licence key for MD Money Desk. My device code is "+LIC.dev)+'" target="_blank" rel="noopener">Send on WhatsApp</a></div>'+
+    '<a class="btn wa" href="'+waLink("Hello, I would like a licence key for MD Money Desk (v"+APP_VERSION+"). My device code is "+LIC.dev)+'" target="_blank" rel="noopener">Send on WhatsApp</a></div>'+
     (CFG&&CFG.sellerPhone?'<p class="hint" style="margin:-6px 0 0">WhatsApp: +'+esc(String(CFG.sellerPhone).replace(/\D/g,""))+'</p>':'')+
     '<label for="lic-key">Licence key<input id="lic-key" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Paste the key here"></label>'+
     '<p class="err" id="lic-err">'+(msg||"")+'</p>'+
@@ -1318,7 +1321,7 @@ function whyText(r){
 }
 function renderLicence(msg){
   var hasData=state&&state.accounts&&state.accounts.length&&!state.sample;
-  document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><section class="card">'+
+  document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk <span class="ver">v'+APP_VERSION+'</span></span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><section class="card">'+
     '<h2 style="font-size:17px">'+(LIC.status==="ended"?"Your licence has ended":"Activate MD Money Desk")+'</h2>'+licBody(msg)+'</section>'+
     (hasData?'<p class="muted" style="font-size:13px;margin:0">Your records are still on this device. <button class="btn link" data-act="download-bk">Download a backup of my data</button></p>':'')+'</div>';
 }
