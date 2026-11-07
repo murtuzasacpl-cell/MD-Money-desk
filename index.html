@@ -49,7 +49,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .logo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
 .logo svg{width:18px;height:18px;flex:none}
 .hello{display:flex;flex-direction:column;gap:2px;min-width:0}
-.hello h1{font-size:24px;line-height:1.15}
+.hello h1{font-size:28px;line-height:1.1}
+.lic h1{font-size:30px;line-height:1.1}
+.pwwrap{position:relative;display:block}
+.pwwrap input{width:100%;padding-right:64px}
+.pwbtn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:6px 8px;cursor:pointer;border-radius:6px}
+.pwbtn:hover{background:var(--accent-soft)}
 .hello .sub{color:var(--muted);font-size:13px}
 .hello .sub b{color:var(--ink);font-weight:600}
 .brand .right{align-self:center}
@@ -342,7 +347,7 @@ function render(){
   var lateCount={client:0,property:0,loan:0};
   rs.forEach(function(r){if(r.oldest) lateCount[r.a.kind]++});
   var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
-  var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk</span><h1>Welcome'+(personName()?', '+esc(personName()):'')+'</h1><span class="sub">'+(bizName()?'<b>'+esc(bizName())+'</b> · ':'')+'<span id="clock">'+nowText()+'</span></span></div>'+
+  var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><span class="sub"><b>Welcome'+(personName()?', '+esc(personName()):'')+'</b> · <span id="clock">'+nowText()+'</span></span></div>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
     licPill()+'<button class="btn sm" data-act="backup">Backup</button>'+(SEC?'<button class="btn sm" data-act="logout">Log out</button>':'')+
@@ -636,7 +641,7 @@ document.addEventListener("change",function(e){
   var t=e.target;
   if(t.id==="imp-file"&&t.files&&t.files[0]){t.files[0].text().then(function(txt){IMP.text=txt;checkImport()});return}
   if(t.id&&t.id.indexOf("rp-")===0){REP[t.id.slice(3)]=t.value;if(t.id==="rp-acc"){REP.sfrom="";}render();return}
-  if(t.id==="sec-mins"){SEC.mins=+t.value;storeSec();bumpIdle();render();return}
+  if(t.id==="sec-mins"){SEC.mins=+t.value;storeSec();startSession();render();return}
   if((t.id==="bk-file"||t.id==="bk-file2")&&t.files&&t.files[0]){
     t.files[0].text().then(function(txt){
       try{var s2=JSON.parse(txt);if(!s2||!Array.isArray(s2.accounts)||!Array.isArray(s2.payments))throw 0;state=s2;closeModal();save()}
@@ -713,6 +718,12 @@ function closeDialog(id){
 /* ---------- login & security ---------- */
 var SEC=null, UNLOCKED=false, lastAct=Date.now();
 try{SEC=JSON.parse(localStorage.getItem("md-money-sec")||"null")}catch(e){SEC=null}
+/* stay logged in across refresh and reopen, until Log out or the idle time passes */
+var lastSaveAct=0;
+function startSession(){lastAct=Date.now();lastSaveAct=lastAct;try{localStorage.setItem("md-money-session",JSON.stringify({s:SEC&&SEC.salt,t:lastAct}))}catch(e){}}
+function endSession(){try{localStorage.removeItem("md-money-session")}catch(e){}}
+(function(){try{var ss=JSON.parse(localStorage.getItem("md-money-session")||"null");
+  if(SEC&&ss&&ss.s===SEC.salt&&(!(SEC.mins>0)||Date.now()-ss.t<SEC.mins*60000)){UNLOCKED=true;startSession()}}catch(e){}})();
 function storeSec(){try{if(SEC)localStorage.setItem("md-money-sec",JSON.stringify(SEC));else localStorage.removeItem("md-money-sec")}catch(e){}}
 function b64(buf){var s="";new Uint8Array(buf).forEach(function(x){s+=String.fromCharCode(x)});return btoa(s)}
 function rnd(n){var r=new Uint8Array(n);crypto.getRandomValues(r);return r}
@@ -723,7 +734,7 @@ function pbk(pass,salt,iter){
 function normRec(c){return String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
 function newSec(pass){
   var rec="";var r=rnd(12);for(var i=0;i<12;i++){rec+=ALPH[r[i]%ALPH.length];if(i===3||i===7)rec+="-"}
-  var ns={iter:150000,salt:b64(rnd(16)),rsalt:b64(rnd(16)),mins:SEC&&SEC.mins!=null?SEC.mins:10,user:SEC&&SEC.user||""};
+  var ns={iter:150000,salt:b64(rnd(16)),rsalt:b64(rnd(16)),mins:SEC&&SEC.mins!=null?SEC.mins:60,user:SEC&&SEC.user||""};
   return pbk(pass,ns.salt,ns.iter).then(function(h){ns.hash=h;return pbk(normRec(rec),ns.rsalt,ns.iter)}).then(function(h){ns.rhash=h;SEC=ns;storeSec();return rec});
 }
 function checkPass(p){return SEC?pbk(p,SEC.salt,SEC.iter).then(function(h){return h===SEC.hash}):Promise.resolve(true)}
@@ -735,13 +746,13 @@ function showRecovery(rec){
     '<div class="actions"><button class="btn" data-act="copy-rec" data-code="'+rec+'">Copy</button><button class="btn primary" data-act="rec-done">I have saved it</button></div>');
 }
 document.addEventListener("click",function(e){var t=e.target.closest("[data-act=copy-rec]");if(t){try{navigator.clipboard.writeText(t.dataset.code).then(function(){t.textContent="Copied"})}catch(_){}}});
-function lockNow(){UNLOCKED=false;closeModal();render()}
-function bumpIdle(){lastAct=Date.now()}
+function lockNow(){UNLOCKED=false;endSession();closeModal();render()}
+function bumpIdle(){lastAct=Date.now();if(UNLOCKED&&lastAct-lastSaveAct>20000)startSession()}
 ["click","keydown","touchstart"].forEach(function(ev){document.addEventListener(ev,bumpIdle,{passive:true})});
 function idleCheck(){if(SEC&&UNLOCKED&&SEC.mins>0&&Date.now()-lastAct>SEC.mins*60000)lockNow()}
 setInterval(idleCheck,30000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck()});
-function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1 style="font-size:24px">'+(bizName()?esc(bizName()):"Welcome")+'</h1>'+inner+'</div>'}
+function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1>'+inner+'</div>'}
 function renderLogin(){
   lockShell('<section class="card"><h2 style="font-size:17px">Log in</h2>'+
     '<form class="stack" id="loginform">'+(SEC.user?'<label for="lg-user">Username<input id="lg-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>':'')+'<label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
@@ -754,7 +765,7 @@ function doLogin(){
   err.textContent="Checking…";
   checkPass(p).then(function(ok){
     if(!ok||(SEC.user&&ue&&normUser(ue.value)!==SEC.user)){err.textContent="Wrong username or password. Try again, or use Forgot password.";return}
-    UNLOCKED=true;bumpIdle();render();
+    UNLOCKED=true;startSession();render();
   });
 }
 function renderSetup(){
@@ -781,7 +792,7 @@ function doSetup(){
   newSec(p).then(function(rec){
     SEC.user=u;storeSec();
     state.profile=Object.assign({},state.profile||{},{name:nm,person:document.getElementById("su-person").value.trim().slice(0,60)});
-    UNLOCKED=true;bumpIdle();save();showRecovery(rec);
+    UNLOCKED=true;startSession();save();showRecovery(rec);
   });
 }
 function getReq(){var q=lsGet("md-money-req");if(!q){var r=rnd(4);q=String(100000+((r[0]<<16|r[1]<<8|r[2])%900000));lsSet("md-money-req",q)}return q}
@@ -808,7 +819,7 @@ function passPair(a,b,errEl){
   if(p1!==p2){err.textContent="The two passwords are not the same.";return null}
   return p1;
 }
-function finishNewPass(p){return newSec(p).then(function(rec){UNLOCKED=true;bumpIdle();render();showRecovery(rec)})}
+function finishNewPass(p){return newSec(p).then(function(rec){UNLOCKED=true;startSession();render();showRecovery(rec)})}
 function recoverWithCode(){
   var err=document.getElementById("rc-err"),p=passPair("rc-new","rc-rep","rc-err");if(!p)return;
   err.textContent="Checking…";
@@ -856,7 +867,7 @@ function securityView(){
       '<p class="err full" id="ss-err"></p><div class="actions full"><button class="btn primary" type="submit">Turn on password lock</button></div></form></section>';
   } else {
     h+='<section class="card"><div class="card-h"><h2>Your login</h2><span class="pill good">'+(SEC.user?"Logged in as "+esc(SEC.user):"Password on")+'</span><div class="right"><button class="btn primary sm" data-act="logout">Log out now</button></div></div>'+
-      '<label for="sec-mins" style="max-width:320px">Log out automatically when not used for<select id="sec-mins">'+[[5,"5 minutes"],[10,"10 minutes"],[30,"30 minutes"],[60,"1 hour"],[0,"Never"]].map(function(o){return '<option value="'+o[0]+'"'+(SEC.mins===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select></label></section>'+
+      '<label for="sec-mins" style="max-width:320px">Log out automatically when not used for<select id="sec-mins">'+[[10,"10 minutes"],[30,"30 minutes"],[60,"1 hour"],[480,"8 hours"],[1440,"1 day"],[10080,"1 week"],[0,"Never (only when I press Log out)"]].map(function(o){return '<option value="'+o[0]+'"'+(SEC.mins===o[0]?" selected":"")+'>'+o[1]+'</option>'}).join("")+'</select></label></section>'+
       '<section class="card"><h2>Change password</h2><form class="form" id="secchange"><label class="full" for="sc-cur">Current password<input id="sc-cur" type="password" autocomplete="current-password" required></label>'+
       '<label for="sc-new">New password<input id="sc-new" type="password" autocomplete="new-password" required></label><label for="sc-rep">Repeat new password<input id="sc-rep" type="password" autocomplete="new-password" required></label>'+
       '<p class="hint full">You also get a new recovery code.</p><p class="err full" id="sc-err"></p><div class="actions full"><button class="btn primary" type="submit">Change password</button></div></form></section>'+
@@ -1215,6 +1226,18 @@ function makeXlsx(R){
 }
 function downloadBlob(name,blob){var u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name.replace(/[\\\/:*?"<>|]/g," ");document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(u);a.remove()},1500)}
 
+/* ---------- show / hide password ---------- */
+function enhancePw(root){
+  (root||document).querySelectorAll('input[type="password"]:not([data-pw])').forEach(function(inp){
+    inp.setAttribute("data-pw","1");
+    var w=document.createElement("span");w.className="pwwrap";inp.parentNode.insertBefore(w,inp);w.appendChild(inp);
+    var b=document.createElement("button");b.type="button";b.className="pwbtn";b.textContent="Show";b.setAttribute("aria-label","Show password");
+    b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();var show=inp.type==="password";inp.type=show?"text":"password";b.textContent=show?"Hide":"Show";b.setAttribute("aria-label",show?"Hide password":"Show password");inp.focus()});
+    w.appendChild(b);
+  });
+}
+try{new MutationObserver(function(){enhancePw()}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+
 /* ---------- licence ---------- */
 var PRODUCT="md-money", CFG=window.MD_CONFIG||null;
 var LIC={dev:"",key:"",status:"none",type:"",end:"",left:null};
@@ -1285,7 +1308,7 @@ function whyText(r){
 }
 function renderLicence(msg){
   var hasData=state&&state.accounts&&state.accounts.length&&!state.sample;
-  document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">MD Money Desk</h1><section class="card">'+
+  document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><section class="card">'+
     '<h2 style="font-size:17px">'+(LIC.status==="ended"?"Your licence has ended":"Activate MD Money Desk")+'</h2>'+licBody(msg)+'</section>'+
     (hasData?'<p class="muted" style="font-size:13px;margin:0">Your records are still on this device. <button class="btn link" data-act="download-bk">Download a backup of my data</button></p>':'')+'</div>';
 }
