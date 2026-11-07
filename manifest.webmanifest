@@ -1,6 +1,6 @@
 {
-  "name": "Money Desk",
-  "short_name": "Money Desk",
+  "name": "MD Money Desk",
+  "short_name": "MD Money Desk",
   "description": "Clients, rent, leases and loans in one place. Works offline.",
   "start_url": "./index.html",
   "scope": "./",

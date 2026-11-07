@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Money Desk</title>
+<title>MD Money Desk</title>
 <meta name="theme-color" content="#0d6b73">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Money Desk">
+<meta name="apple-mobile-web-app-title" content="MD Money Desk">
 <style id="css">
 /* Layout: sticky top bar with tabs; summary tiles, then attention list + schedule, then ledgers. */
 :root{
@@ -184,7 +184,7 @@ tr.sect td{background:var(--bg);font-weight:600;color:var(--muted);font-size:13p
 <script id="code">
 (function(){
 "use strict";
-var TITLE = "Money Desk";
+var TITLE = "MD Money Desk";
 var _unused = '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">';
 
 /* ---------- dates ---------- */
@@ -331,7 +331,7 @@ function render(){
   var lateCount={client:0,property:0,loan:0};
   rs.forEach(function(r){if(r.oldest) lateCount[r.a.kind]++});
   var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
-  var h='<header class="top"><div class="top-in"><div class="brand"><h1>Money Desk</h1><span class="sub">'+dLabel(TODAY)+'</span>'+
+  var h='<header class="top"><div class="top-in"><div class="brand"><h1>MD Money Desk</h1><span class="sub">'+dLabel(TODAY)+'</span>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
     licPill()+'<button class="btn sm" data-act="backup">Backup</button>'+(SEC?'<button class="btn sm" data-act="logout">Log out</button>':'')+
@@ -543,7 +543,7 @@ function k(l,v){return '<div><span>'+l+'</span><b class="num">'+v+'</b></div>'}
 
 function downloadBackup(){
   var blob=new Blob([JSON.stringify(state,null,1)],{type:"application/json"});
-  var u=URL.createObjectURL(blob),a2=document.createElement("a");a2.href=u;a2.download="money-desk-backup-"+ymd(new Date())+".json";document.body.appendChild(a2);a2.click();setTimeout(function(){URL.revokeObjectURL(u);a2.remove()},1000);
+  var u=URL.createObjectURL(blob),a2=document.createElement("a");a2.href=u;a2.download="md-money-desk-backup-"+ymd(new Date())+".json";document.body.appendChild(a2);a2.click();setTimeout(function(){URL.revokeObjectURL(u);a2.remove()},1000);
 }
 function backupDialog(){
   modal('<div class="dialog-h"><h2>Backup and restore</h2><button class="btn sm x" data-act="close">Close</button></div>'+
@@ -596,7 +596,7 @@ document.addEventListener("click",function(e){
   if(act==="rp-xlsx"){var R1=buildReport();downloadBlob(R1.file+".xlsx",makeXlsx(R1),"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");return}
   if(act==="rp-print"){printReport(buildReport());return}
   if(act==="imp-kind"){IMP.kind=t.dataset.k;IMP.rows=null;IMP.text="";render();return}
-  if(act==="imp-template"){downloadText("money-desk-"+IMP.kind+"-template.csv",templateCsv(IMP.kind),"text/csv");return}
+  if(act==="imp-template"){downloadText("md-money-desk-"+IMP.kind+"-template.csv",templateCsv(IMP.kind),"text/csv");return}
   if(act==="imp-check"){IMP.text=document.getElementById("imp-paste").value;checkImport();return}
   if(act==="imp-go"){doImport();return}
   if(act==="imp-clear"){IMP.rows=null;IMP.text="";IMP.msg="";render();return}
@@ -615,7 +615,7 @@ document.addEventListener("change",function(e){
   if((t.id==="bk-file"||t.id==="bk-file2")&&t.files&&t.files[0]){
     t.files[0].text().then(function(txt){
       try{var s2=JSON.parse(txt);if(!s2||!Array.isArray(s2.accounts)||!Array.isArray(s2.payments))throw 0;state=s2;closeModal();save()}
-      catch(_){var be=document.getElementById("bk-err")||document.getElementById("bk-err2");if(be)be.textContent="That file isn't a Money Desk backup. Choose the .json file you downloaded from Backup."}
+      catch(_){var be=document.getElementById("bk-err")||document.getElementById("bk-err2");if(be)be.textContent="That file isn't a MD Money Desk backup. Choose the .json file you downloaded from Backup."}
     });return;
   }
   if(t.id==="cur"){state.currency=t.value;save();return}
@@ -708,7 +708,7 @@ function bumpIdle(){lastAct=Date.now()}
 function idleCheck(){if(SEC&&UNLOCKED&&SEC.mins>0&&Date.now()-lastAct>SEC.mins*60000)lockNow()}
 setInterval(idleCheck,30000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck()});
-function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">Money Desk</h1>'+inner+'</div>'}
+function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">MD Money Desk</h1>'+inner+'</div>'}
 function renderLogin(){
   lockShell('<section class="card"><h2 style="font-size:17px">Log in</h2>'+
     '<form class="stack" id="loginform"><label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
@@ -730,7 +730,7 @@ function renderForgot(){
     '<section class="card"><h2 style="font-size:17px">No recovery code?</h2>'+
     '<p style="margin:0">Send these two numbers to '+esc(seller)+'. You will get a reset code back.</p>'+
     '<div class="kv"><div><span>Device code</span><b class="num">'+LIC.dev+'</b></div><div><span>Request number</span><b class="num">'+req+'</b></div></div>'+
-    '<a class="btn wa" href="'+waLink("Hello, I forgot my Money Desk password. Device code: "+LIC.dev+". Request number: "+req)+'" target="_blank" rel="noopener">Send on WhatsApp</a>'+
+    '<a class="btn wa" href="'+waLink("Hello, I forgot my MD Money Desk password. Device code: "+LIC.dev+". Request number: "+req)+'" target="_blank" rel="noopener">Send on WhatsApp</a>'+
     '<form class="stack" id="resetform"><label for="rs-code">Reset code<input id="rs-code" autocomplete="off" spellcheck="false" required></label>'+
     '<label for="rs-new">New password<input id="rs-new" type="password" autocomplete="new-password" required></label>'+
     '<label for="rs-rep">Repeat new password<input id="rs-rep" type="password" autocomplete="new-password" required></label>'+
@@ -785,7 +785,7 @@ function securityView(){
   var h='';
   if(!SEC){
     h+='<section class="card"><div class="card-h"><h2>Password lock</h2><span class="pill plain">Off</span></div>'+
-      '<p class="muted" style="margin:0">Anyone who picks up this phone or computer can open Money Desk. Set a password so only you can see your money records.</p>'+
+      '<p class="muted" style="margin:0">Anyone who picks up this phone or computer can open MD Money Desk. Set a password so only you can see your money records.</p>'+
       '<form class="form" id="secset"><label for="ss-new">New password<input id="ss-new" type="password" autocomplete="new-password" required></label>'+
       '<label for="ss-rep">Repeat password<input id="ss-rep" type="password" autocomplete="new-password" required></label>'+
       '<p class="err full" id="ss-err"></p><div class="actions full"><button class="btn primary" type="submit">Turn on password lock</button></div></form></section>';
@@ -809,7 +809,7 @@ var IMP_COLS={
   clients:[["name","Client name (required)"],["contact","Contact person"],["monthly_amount","Usual monthly amount (required)"],["due_day","Day of month it is due, 1 to 31"],["start_month","First month billed, e.g. 2026-06 or 06/2026 (required)"],["end_month","Last month billed, empty if still active"],["notes","Anything else"]],
   properties:[["property","Property name (required)"],["tenant_or_landlord","Tenant or landlord name"],["type","rent out (tenant pays me) or lease (I pay)"],["monthly_rent","Monthly rent (required)"],["due_day","Day of month rent is due"],["lease_start","First month of rent (required)"],["lease_end","Last month of the lease, can be empty"],["deposit","Deposit"],["notes","Anything else"]],
   loans:[["loan","Loan name (required)"],["lender","Bank or lender"],["amount_borrowed","Amount borrowed (required)"],["interest_rate","% per year, e.g. 14"],["instalments","Number of instalments (required)"],["first_instalment_month","First month an instalment is due (required)"],["due_day","Day of month it is due"],["instalment_amount","Leave empty to work it out from the rate"],["notes","Anything else"]],
-  payments:[["name","Client, property or loan name, exactly as in Money Desk (required)"],["date","Date paid, e.g. 05/11/2026 (required)"],["amount","Amount (required)"],["note","e.g. M-Pesa ref"]]
+  payments:[["name","Client, property or loan name, exactly as in MD Money Desk (required)"],["date","Date paid, e.g. 05/11/2026 (required)"],["amount","Amount (required)"],["note","e.g. M-Pesa ref"]]
 };
 var IMP_EX={
   clients:["Apex Logistics","Grace Wanjiku","80000","5","2026-06","","Monthly retainer"],
@@ -904,7 +904,7 @@ function checkImport(){
         label=nm+" · "+(isNaN(am)?"?":fmt(am))+" a month"+(kind==="property"?" · "+(o.dir==="in"?"I rent it out":"I lease it"):"");
       }
       var dk=kind+"|"+nm.toLowerCase();
-      if(nm&&(seen[dk]||base.accounts.some(function(a){return a.kind===kind&&a.name.trim().toLowerCase()===nm.toLowerCase()&&!a.closed})))e.push("Already in Money Desk, will skip");
+      if(nm&&(seen[dk]||base.accounts.some(function(a){return a.kind===kind&&a.name.trim().toLowerCase()===nm.toLowerCase()&&!a.closed})))e.push("Already in MD Money Desk, will skip");
       seen[dk]=1;
     }
     return {n:i+2,label:label,errs:e,obj:e.length?null:o};
@@ -941,7 +941,7 @@ function importView(){
       '</tbody></table></div><div class="actions"><button class="btn" data-act="imp-clear">Cancel</button><button class="btn primary" data-act="imp-go"'+(good?"":" disabled")+'>Import '+good+' '+(good===1?"row":"rows")+'</button></div>';
   }
   h+='</section>';
-  h+='<section class="card"><h2>Restore a Money Desk backup</h2><p class="muted" style="margin:0">Moving to a new phone or computer? Choose the backup file you downloaded from the Backup button. This replaces what is on this device.</p>'+
+  h+='<section class="card"><h2>Restore a MD Money Desk backup</h2><p class="muted" style="margin:0">Moving to a new phone or computer? Choose the backup file you downloaded from the Backup button. This replaces what is on this device.</p>'+
     '<label for="bk-file2">Backup file (.json)<input id="bk-file2" type="file" accept=".json,application/json"></label><p class="err" id="bk-err2"></p></section>';
   return h;
 }
@@ -976,7 +976,7 @@ function buildReport(){
     var tin=0,tout=0;
     var rows=ps.map(function(p){var a=acc(p.acc),inn=isIn(a);if(inn)tin+=+p.amount;else tout+=+p.amount;return [dLabel(parseD(p.date)),a.name,partyType(a),p.note||"",inn?+p.amount:null,inn?null:+p.amount]});
     var title=f===t?"Daily report "+dLabel(parseD(f)):"Report "+dLabel(parseD(f))+" to "+dLabel(parseD(t));
-    return {title:title,sub:gen,file:"Money Desk - "+title,blocks:[
+    return {title:title,sub:gen,file:"MD Money Desk - "+title,blocks:[
       {type:"kv",rows:[["Money received",tin,1],["Money paid out",tout,1],["Net",tin-tout,1],["Number of payments",ps.length,0]]},
       {type:"table",heading:"Payments",cols:[{h:"Date"},{h:"Name"},{h:"Type"},{h:"Note"},{h:"Received",m:1},{h:"Paid out",m:1}],rows:rows,total:["Total","","","",tin,tout],empty:"No payments in this period."}]};
   }
@@ -991,14 +991,14 @@ function buildReport(){
       else{outRows.push([a.name,partyType(a),billed,got,owe]);ob+=billed;op+=got;oo+=owe}
     });
     var title="Monthly report "+mLabel(m);
-    return {title:title,sub:gen,file:"Money Desk - "+title,blocks:[
+    return {title:title,sub:gen,file:"MD Money Desk - "+title,blocks:[
       {type:"kv",rows:[["Billed to clients and tenants",tb,1],["Money received",tr,1],["Money paid out",op,1],["Net cash for the month",tr-op,1],["Owed to you at month end",to,1],["You owe at month end",oo,1]]},
       {type:"table",heading:"Money in: clients and tenants",cols:[{h:"Name"},{h:"Type"},{h:"Billed this month",m:1},{h:"Received this month",m:1},{h:"Unpaid at month end",m:1}],rows:inRows,total:["Total","",tb,tr,to],empty:"Nothing billed or received this month."},
       {type:"table",heading:"Money out: leases and loans",cols:[{h:"Name"},{h:"Type"},{h:"Due this month",m:1},{h:"Paid this month",m:1},{h:"Unpaid at month end",m:1}],rows:outRows,total:["Total","",ob,op,oo],empty:"Nothing due or paid this month."}]};
   }
   if(k==="statement"){
     var a=acc(REP.acc)||state.accounts[0];
-    if(!a)return {title:"Statement",sub:gen,file:"Money Desk - Statement",blocks:[{type:"note",text:"Add a client, property or loan first."}]};
+    if(!a)return {title:"Statement",sub:gen,file:"MD Money Desk - Statement",blocks:[{type:"note",text:"Add a client, property or loan first."}]};
     REP.acc=a.id;
     var sf=REP.sfrom||(a.start+"-01"),st=REP.sto||ymd(TODAY);if(st<sf){var y=sf;sf=st;st=y}
     var sfD=parseD(sf),stD=parseD(st),inn=isIn(a);
@@ -1013,7 +1013,7 @@ function buildReport(){
     var kv=[["Opening balance",open,1],[a.kind==="loan"?"Instalments due":"Charged",tc,1],["Paid",tp,1],[bal>=0?(inn?"Balance owed to you":"Balance you owe"):"Paid ahead (credit)",Math.abs(bal),1]];
     if(a.kind==="loan"){var lr=analyze(a);kv.push(["Loan balance left today",lr.balance,1],["Instalments left",lr.left,0])}
     var title="Statement: "+a.name;
-    return {title:title,sub:partyType(a)+(a.party?" · "+a.party:"")+" · "+dLabel(sfD)+" to "+dLabel(stD)+" · "+gen,file:"Money Desk - "+title+" "+st,blocks:[
+    return {title:title,sub:partyType(a)+(a.party?" · "+a.party:"")+" · "+dLabel(sfD)+" to "+dLabel(stD)+" · "+gen,file:"MD Money Desk - "+title+" "+st,blocks:[
       {type:"kv",rows:kv},
       {type:"table",heading:"Transactions",cols:[{h:"Date"},{h:"Description"},{h:a.kind==="loan"?"Due":"Charged",m:1},{h:"Paid",m:1},{h:"Balance",m:1}],rows:rows,total:["","Totals",tc,tp,bal]}]};
   }
@@ -1023,7 +1023,7 @@ function buildReport(){
     var tB=0,tP=0,tL=0;
     var lrows=loans.map(function(a){var r=analyze(a);tB+=+a.principal;tP+=r.paidTotal;tL+=r.balance;
       return [a.name,a.party||"",+a.principal,(+a.rate||0)+"%",r.emi,r.paidTotal,r.paidCount+" of "+a.tenure,r.balance,a.closed?"Closed":(r.nextDue?dLabel(r.nextDue.date):"-"),mLabel(r.endKey)]});
-    return {title:"Loans summary",sub:gen,file:"Money Desk - Loans summary "+ymd(TODAY),blocks:[
+    return {title:"Loans summary",sub:gen,file:"MD Money Desk - Loans summary "+ymd(TODAY),blocks:[
       {type:"kv",rows:[["Total borrowed",tB,1],["Total repaid",tP,1],["Balance left on all loans",tL,1]]},
       {type:"table",heading:"Loans",cols:[{h:"Loan"},{h:"Lender"},{h:"Borrowed",m:1},{h:"Rate"},{h:"Instalment",m:1},{h:"Paid so far",m:1},{h:"Instalments paid"},{h:"Balance left",m:1},{h:"Next due"},{h:"Ends"}],rows:lrows,total:["Total","",tB,"","",tP,"",tL,"",""],empty:"No loans yet."}]};
   }
@@ -1032,7 +1032,7 @@ function buildReport(){
     var st=x.d.status==="paid"?"Paid":x.d.status==="overdue"?"Missed":x.d.status==="partial"?"Part paid":x.d.status==="partial-upcoming"?"Part paid early":"Due";
     return [x.n,mLabel(x.d.key),dLabel(x.d.date),x.d.amount,Math.round(x.interest),Math.round(x.princ),Math.round(x.bal),st]});
   var title="Loan schedule: "+L.name;
-  return {title:title,sub:(L.party||"")+" · "+fmt(L.principal)+" at "+(+L.rate||0)+"% for "+L.tenure+" months · "+gen,file:"Money Desk - "+title,blocks:[
+  return {title:title,sub:(L.party||"")+" · "+fmt(L.principal)+" at "+(+L.rate||0)+"% for "+L.tenure+" months · "+gen,file:"MD Money Desk - "+title,blocks:[
     {type:"kv",rows:[["Instalment",am.r.emi,1],["Paid so far",am.r.paidTotal,1],["Instalments paid",am.r.paidCount+" of "+L.tenure,0],["Balance left",am.r.balance,1],["Missed now",am.r.owedNow,1],["Total interest",Math.round(ti),1]]},
     {type:"table",heading:"Repayment schedule",cols:[{h:"No."},{h:"Month"},{h:"Due date"},{h:"Instalment",m:1},{h:"Interest",m:1},{h:"Principal",m:1},{h:"Balance after",m:1},{h:"Status"}],rows:srows,total:["","Total","",sumAmt(am.rows.map(function(x){return {amount:x.d.amount}})),Math.round(ti),Math.round(tpr),"",""]}]};
 }
@@ -1052,7 +1052,7 @@ function reportHtml(R,forPrint){
 }
 function printReport(R){
   var pr=document.getElementById("print-root");
-  pr.innerHTML='<h1>'+esc(R.title)+'</h1><p class="sub">'+esc(R.sub)+' · Amounts in '+esc(state.currency)+'</p>'+reportHtml(R,true)+'<p class="foot">Money Desk</p>';
+  pr.innerHTML='<h1>'+esc(R.title)+'</h1><p class="sub">'+esc(R.sub)+' · Amounts in '+esc(state.currency)+'</p>'+reportHtml(R,true)+'<p class="foot">MD Money Desk</p>';
   var old=document.title;document.title=R.file;
   setTimeout(function(){try{window.print()}catch(e){}document.title=old},50);
 }
@@ -1201,22 +1201,22 @@ function licBody(msg){
   return '<p style="margin:0">Send this device code to '+esc(seller)+'. You will get a licence key back.</p>'+
     '<div class="devcode num">'+LIC.dev+'</div>'+
     '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="lic-copy">Copy code</button>'+
-    '<a class="btn wa" href="'+waLink("Hello, I would like a licence key for Money Desk. My device code is "+LIC.dev)+'" target="_blank" rel="noopener">Send on WhatsApp</a></div>'+
+    '<a class="btn wa" href="'+waLink("Hello, I would like a licence key for MD Money Desk. My device code is "+LIC.dev)+'" target="_blank" rel="noopener">Send on WhatsApp</a></div>'+
     (CFG&&CFG.sellerPhone?'<p class="hint" style="margin:-6px 0 0">WhatsApp: +'+esc(String(CFG.sellerPhone).replace(/\D/g,""))+'</p>':'')+
     '<label for="lic-key">Licence key<input id="lic-key" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Paste the key here"></label>'+
     '<p class="err" id="lic-err">'+(msg||"")+'</p>'+
     '<div class="actions"><button class="btn primary" data-act="lic-activate">Activate</button></div>';
 }
 function whyText(r){
-  if(r.why==="setup") return "This copy of Money Desk is not set up yet (config.js is missing). Contact the seller.";
+  if(r.why==="setup") return "This copy of MD Money Desk is not set up yet (config.js is missing). Contact the seller.";
   if(r.why==="ended") return "This licence ended on "+showEnd(r.end)+". Ask for a renewal key and paste it here. Your data is safe.";
   if(r.why==="device") return "This key is not for this device. Check that you sent the device code shown above.";
   return "That doesn't look like a complete licence key. Copy the whole key and paste it again.";
 }
 function renderLicence(msg){
   var hasData=state&&state.accounts&&state.accounts.length&&!state.sample;
-  document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">Money Desk</h1><section class="card">'+
-    '<h2 style="font-size:17px">'+(LIC.status==="ended"?"Your licence has ended":"Activate Money Desk")+'</h2>'+licBody(msg)+'</section>'+
+  document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">MD Money Desk</h1><section class="card">'+
+    '<h2 style="font-size:17px">'+(LIC.status==="ended"?"Your licence has ended":"Activate MD Money Desk")+'</h2>'+licBody(msg)+'</section>'+
     (hasData?'<p class="muted" style="font-size:13px;margin:0">Your records are still on this device. <button class="btn link" data-act="download-bk">Download a backup of my data</button></p>':'')+'</div>';
 }
 function licenceDialog(){
