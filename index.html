@@ -332,7 +332,7 @@ function save(){
 function renderSave(){var el=document.getElementById("save");if(el)el.textContent=saveMsg}
 
 /* ---------- view state ---------- */
-var VIEWS=["overview","clients","properties","loans","payments","reports","import","security"];
+var VIEWS=["overview","clients","properties","leases","loans","payments","reports","import","security"];
 var view = VIEWS.indexOf(location.hash.slice(1))>=0 ? location.hash.slice(1) : "overview";
 var payFilter="all";
 window.addEventListener("hashchange",function(){var h=location.hash.slice(1);if(VIEWS.indexOf(h)>=0){view=h;render()}});
@@ -344,9 +344,9 @@ function render(){
   if(!SEC){renderSetup();return}
   if(!UNLOCKED){renderLogin();return}
   var rs=all();
-  var lateCount={client:0,property:0,loan:0};
-  rs.forEach(function(r){if(r.oldest) lateCount[r.a.kind]++});
-  var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
+  var lateCount={client:0,property:0,lease:0,loan:0};
+  rs.forEach(function(r){if(r.oldest) lateCount[grp(r.a)]++});
+  var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["leases","Leases","lease"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
   var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk</span><h1>'+esc(bizName()||"MD Money Desk")+'</h1><span class="sub"><b>Welcome'+(personName()?', '+esc(personName()):'')+'</b> · <span id="clock">'+nowText()+'</span></span></div>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
@@ -357,6 +357,7 @@ function render(){
   if(view==="overview") h+=overview(rs);
   else if(view==="clients") h+=ledger(rs,"client");
   else if(view==="properties") h+=ledger(rs,"property");
+  else if(view==="leases") h+=ledger(rs,"lease");
   else if(view==="loans") h+=ledger(rs,"loan");
   else if(view==="reports") h+=reportsView();
   else if(view==="import") h+=importView();
@@ -390,7 +391,8 @@ function overview(rs){
   var h='<section class="tiles">'+
     tile("Owed to you now",fmt(owedToMe),lateClients+" "+(lateClients===1?"client or tenant":"clients and tenants")+" behind",owedToMe>0?"bad":"good")+
     tile("Received in "+MON[TODAY.getMonth()],fmt(gotThisMonth),fmt(thisIn)+" still to come this month","good")+
-    tile("You owe this month",fmt(thisOut+iOwe),(iOwe>0?fmt(iOwe)+" is overdue":"Nothing overdue")+" · paid "+fmt(paidThisMonth),iOwe>0?"bad":"out")+
+    outTile("Lease rent to pay",rs.filter(function(r){return grp(r.a)==="lease"}),"lease")+
+    outTile("Loan instalments to pay",rs.filter(function(r){return r.a.kind==="loan"}),"loan")+
     tile("Loan balance left",fmt(loanBal),rs.filter(function(r){return r.a.kind==="loan"&&!r.a.closed}).length+" active loans","")+
   '</section>';
   // attention
@@ -422,9 +424,15 @@ function overview(rs){
   h+=chartCard();
   return h;
 }
+function outTile(label,list,g){
+  var late=sum(list,"owedNow"),due=sum(list,"dueThisMonth"),paid=0;
+  state.payments.forEach(function(p){if(p.date.slice(0,7)===THIS_MONTH){var a=acc(p.acc);if(a&&grp(a)===g)paid+=+p.amount}});
+  return tile(label+" in "+MON[TODAY.getMonth()],fmt(due+late),(late>0?fmt(late)+" overdue":"Nothing overdue")+" · paid "+fmt(paid),late>0?"bad":"out");
+}
 function tile(l,v,f,c){return '<div class="tile '+c+'"><span class="lbl">'+l+'</span><span class="val num">'+v+'</span><span class="foot">'+f+'</span></div>'}
 function sum(arr,k){return arr.reduce(function(s,r){return s+(r[k]||0)},0)}
 function acc(id){for(var i=0;i<state.accounts.length;i++)if(state.accounts[i].id===id)return state.accounts[i];return null}
+function grp(a){return a.kind==="property"?(a.dir==="out"?"lease":"property"):a.kind}
 function closedWord(a){return a.kind==="client"?"Ended":a.kind==="loan"?"Closed":(a.dir==="in"?"Moved out":"Lease ended")}
 function kindLabel(a){return a.kind==="client"?"Client":a.kind==="loan"?"Loan instalment":(a.dir==="in"?"Rent from tenant":"Lease rent I pay")}
 
@@ -452,29 +460,29 @@ function niceStep(x){var p=Math.pow(10,Math.floor(Math.log10(x||1)));var n=x/p;r
 function short(n){return n>=1e6?(n/1e6).toFixed(n%1e6?1:0)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n)}
 
 function ledger(rs,kind){
-  var list=rs.filter(function(r){return r.a.kind===kind});
-  var names={client:["Clients","client"],property:["Properties","property"],loan:["Loans","loan"]}[kind];
+  var list=rs.filter(function(r){return grp(r.a)===kind});
+  var names={client:["Clients","client"],property:["Properties I rent out","property"],lease:["Leases I pay","lease"],loan:["Loans","loan"]}[kind];
   var h='<section class="card"><div class="card-h"><h2>'+names[0]+'</h2><div class="right"><button class="btn sm primary" data-act="new" data-kind="'+kind+'">+ Add '+names[1]+'</button></div></div>';
-  if(!list.length) return h+'<div class="empty">No '+names[0].toLowerCase()+' yet. Add your first one.</div></section>';
+  if(!list.length) return h+'<div class="empty">No '+(kind==="lease"?"leases":kind==="property"?"properties":names[0].toLowerCase())+' yet. Add your first one.</div></section>';
   h+='<div class="tbl-wrap"><table><thead><tr>';
   if(kind==="client") h+='<th>Client</th><th class="r">Monthly</th><th class="r">Billed so far</th><th class="r">Received</th><th class="r">Owes now</th><th>Status</th><th></th>';
-  if(kind==="property") h+='<th>Property</th><th>Type</th><th class="r">Monthly rent</th><th>Lease ends</th><th class="r">Overdue</th><th>Status</th><th></th>';
+  if(kind==="property"||kind==="lease") h+='<th>Property</th><th class="r">Monthly rent</th><th>Lease ends</th><th class="r">Overdue</th><th>Status</th><th></th>';
   if(kind==="loan") h+='<th>Loan</th><th class="r">Instalment</th><th>Progress</th><th class="r">Balance left</th><th>Next due</th><th>Status</th><th></th>';
   h+='</tr></thead><tbody>';
   var active=list.filter(function(r){return !r.a.closed}), gone=list.filter(function(r){return r.a.closed});
   if(gone.length) list=active.concat([null],gone);
   list.forEach(function(r){
-    if(!r){h+='<tr class="sect"><td colspan="7">'+(kind==="client"?"Ended clients":kind==="loan"?"Closed loans":"Moved out / ended leases")+' ('+gone.length+')</td></tr>';return}
+    if(!r){h+='<tr class="sect"><td colspan="7">'+(kind==="client"?"Ended clients":kind==="loan"?"Closed loans":kind==="lease"?"Ended leases":"Moved out tenants")+' ('+gone.length+')</td></tr>';return}
     var a=r.a;
     h+='<tr class="click'+(a.closed?" closed":"")+'" data-act="open" data-id="'+a.id+'"><td><b>'+esc(a.name)+'</b><br><small class="muted">'+esc(a.party)+'</small></td>';
     if(kind==="client"){
       var varies=a.overrides&&Object.keys(a.overrides).length;
       h+='<td class="r num">'+fmt(a.amount)+(varies?'<br><small class="muted">varies</small>':'')+'</td><td class="r num">'+fmt(r.billed)+'</td><td class="r num">'+fmt(r.paidTotal)+'</td><td class="r num" style="font-weight:600;color:'+(r.owedNow?"var(--bad)":"inherit")+'">'+fmt(r.owedNow)+'</td>';
     }
-    if(kind==="property"){
+    if(kind==="property"||kind==="lease"){
       var endTxt=a.end?mLabel(a.end):"Open-ended";
       var endCls=a.closed?"":(r.daysToEnd!=null&&r.daysToEnd<=90?(r.daysToEnd<0?"plain":"warn"):"");
-      h+='<td><span class="pill '+(a.dir==="in"?"good":"plain")+'">'+(a.dir==="in"?"I rent it out":"I lease it")+'</span></td><td class="r num">'+fmt(a.amount)+'</td><td>'+(endCls?'<span class="pill '+endCls+'">'+endTxt+'</span>':endTxt)+'</td><td class="r num" style="font-weight:600;color:'+(r.owedNow?(a.dir==="in"?"var(--bad)":"var(--out)"):"inherit")+'">'+fmt(r.owedNow)+'</td>';
+      h+='<td class="r num">'+fmt(a.amount)+'</td><td>'+(endCls?'<span class="pill '+endCls+'">'+endTxt+'</span>':endTxt)+'</td><td class="r num" style="font-weight:600;color:'+(r.owedNow?(a.dir==="in"?"var(--bad)":"var(--out)"):"inherit")+'">'+fmt(r.owedNow)+'</td>';
     }
     if(kind==="loan"){
       var pct=Math.round(100*r.paidCount/(+a.tenure||1));
@@ -490,9 +498,9 @@ function ledger(rs,kind){
 }
 
 function paymentsView(){
-  var ps=state.payments.slice().sort(function(a,b){return a.date<b.date?1:-1}).filter(function(p){var a=acc(p.acc);if(!a)return false;if(payFilter==="all")return true;if(payFilter==="in")return isIn(a);if(payFilter==="out")return !isIn(a);return a.kind===payFilter});
+  var ps=state.payments.slice().sort(function(a,b){return a.date<b.date?1:-1}).filter(function(p){var a=acc(p.acc);if(!a)return false;if(payFilter==="all")return true;if(payFilter==="in")return isIn(a);if(payFilter==="out")return !isIn(a);return grp(a)===payFilter});
   var h='<section class="card"><div class="card-h"><h2>All payments</h2><div class="filters right">'+
-    [["all","All"],["in","Money in"],["out","Money out"],["client","Clients"],["property","Properties"],["loan","Loans"]].map(function(f){return '<button class="chip" data-act="filter" data-f="'+f[0]+'" aria-pressed="'+(payFilter===f[0])+'">'+f[1]+'</button>'}).join("")+'</div></div>';
+    [["all","All"],["in","Money in"],["out","Money out"],["client","Clients"],["property","Properties"],["lease","Leases"],["loan","Loans"]].map(function(f){return '<button class="chip" data-act="filter" data-f="'+f[0]+'" aria-pressed="'+(payFilter===f[0])+'">'+f[1]+'</button>'}).join("")+'</div></div>';
   if(!ps.length) return h+'<div class="empty">No payments recorded yet.</div></section>';
   h+='<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>From / to</th><th>Type</th><th>Note</th><th class="r">Amount</th><th></th></tr></thead><tbody>'+
     ps.slice(0,300).map(function(p){var a=acc(p.acc),inn=isIn(a);return '<tr><td class="num">'+dLabel(parseD(p.date))+'</td><td><b>'+esc(a.name)+'</b></td><td class="muted">'+kindLabel(a)+'</td><td class="muted">'+esc(p.note)+'</td><td class="r num" style="font-weight:600;color:'+(inn?"var(--good)":"var(--out)")+'">'+(inn?"+":"−")+fmt(p.amount)+'</td><td class="r"><button class="btn sm danger" data-act="del-pay" data-id="'+p.id+'">Delete</button></td></tr>'}).join("")+
@@ -521,7 +529,7 @@ function payDialog(id){
 function accDialog(kind,id,tpl){
   var a=id?acc(id):Object.assign({kind:kind,name:"",party:"",amount:"",dueDay:5,start:THIS_MONTH,end:"",dir:"in",principal:"",rate:"",tenure:12,emi:"",deposit:"",notes:""},tpl||{});
   kind=a.kind;
-  var title=(id?"Edit ":"Add ")+(kind==="client"?"client":kind==="property"?"property":"loan");
+  var title=(id?"Edit ":"Add ")+(kind==="client"?"client":kind==="property"?(a.dir==="out"?"lease":"property"):"loan");
   var f='<form class="form" id="accform" data-kind="'+kind+'" data-id="'+(id||"")+'">';
   f+='<label for="f-name">'+(kind==="client"?"Client name":kind==="property"?"Property name":"Loan name")+'<input id="f-name" required value="'+esc(a.name)+'"></label>';
   f+='<label for="f-party">'+(kind==="client"?"Contact person":kind==="property"?"Tenant or landlord":"Lender")+'<input id="f-party" value="'+esc(a.party)+'"></label>';
@@ -593,7 +601,7 @@ document.addEventListener("click",function(e){
   if(act==="pay"){e.stopPropagation();payDialog(id);return}
   if(act==="open"){detailDialog(id);return}
   if(act==="edit"){accDialog(null,id);return}
-  if(act==="new"){accDialog(t.dataset.kind);return}
+  if(act==="new"){var nk=t.dataset.kind;if(nk==="lease")accDialog("property",null,{dir:"out"});else if(nk==="property")accDialog("property",null,{dir:"in"});else accDialog(nk);return}
   if(act==="backup"){backupDialog();return}
   if(act==="filter"){payFilter=t.dataset.f;render();return}
   if(act==="override"){e.stopPropagation();return}
@@ -1052,28 +1060,30 @@ function buildReport(){
   if(k==="daily"){
     var f=REP.from||ymd(TODAY),t=REP.to||f;if(t<f){var x=f;f=t;t=x}
     var ps=state.payments.filter(function(p){return p.date>=f&&p.date<=t&&acc(p.acc)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
-    var tin=0,tout=0;
-    var rows=ps.map(function(p){var a=acc(p.acc),inn=isIn(a);if(inn)tin+=+p.amount;else tout+=+p.amount;return [dLabel(parseD(p.date)),a.name,partyType(a),p.note||"",inn?+p.amount:null,inn?null:+p.amount]});
+    var tin=0,tout=0,tl=0,tlo=0;
+    var rows=ps.map(function(p){var a=acc(p.acc),inn=isIn(a);if(inn)tin+=+p.amount;else{tout+=+p.amount;if(a.kind==="loan")tlo+=+p.amount;else tl+=+p.amount}return [dLabel(parseD(p.date)),a.name,partyType(a),p.note||"",inn?+p.amount:null,inn?null:+p.amount]});
     var title=f===t?"Daily report "+dLabel(parseD(f)):"Report "+dLabel(parseD(f))+" to "+dLabel(parseD(t));
     return {title:title,sub:gen,file:"MD Money Desk - "+title,blocks:[
-      {type:"kv",rows:[["Money received",tin,1],["Money paid out",tout,1],["Net",tin-tout,1],["Number of payments",ps.length,0]]},
+      {type:"kv",rows:[["Money received",tin,1],["Paid for leases",tl,1],["Paid for loans",tlo,1],["Total paid out",tout,1],["Net",tin-tout,1],["Number of payments",ps.length,0]]},
       {type:"table",heading:"Payments",cols:[{h:"Date"},{h:"Name"},{h:"Type"},{h:"Note"},{h:"Received",m:1},{h:"Paid out",m:1}],rows:rows,total:["Total","","","",tin,tout],empty:"No payments in this period."}]};
   }
   if(k==="monthly"){
-    var m=REP.month||THIS_MONTH,me=lastDayOf(m),inRows=[],outRows=[],tb=0,tr=0,to=0,ob=0,op=0,oo=0;
+    var m=REP.month||THIS_MONTH,me=lastDayOf(m),inRows=[],leRows=[],loRows=[],tb=0,tr=0,to=0,lb=0,lp=0,lo=0,nb=0,np=0,no=0;
     state.accounts.forEach(function(a){
       var billed=sumAmt(duesOf(a).filter(function(d){return d.key===m}));
       var got=sumAmt(paysOf(a).filter(function(p){return p.date.slice(0,7)===m}));
       var owe=Math.max(0,balanceAsOf(a,me));
       if(!billed&&!got&&!owe)return;
       if(isIn(a)){inRows.push([a.name,partyType(a),billed,got,owe]);tb+=billed;tr+=got;to+=owe}
-      else{outRows.push([a.name,partyType(a),billed,got,owe]);ob+=billed;op+=got;oo+=owe}
+      else if(a.kind==="loan"){loRows.push([a.name,a.party||"",billed,got,owe]);nb+=billed;np+=got;no+=owe}
+      else{leRows.push([a.name,a.party||"",billed,got,owe]);lb+=billed;lp+=got;lo+=owe}
     });
     var title="Monthly report "+mLabel(m);
     return {title:title,sub:gen,file:"MD Money Desk - "+title,blocks:[
-      {type:"kv",rows:[["Billed to clients and tenants",tb,1],["Money received",tr,1],["Money paid out",op,1],["Net cash for the month",tr-op,1],["Owed to you at month end",to,1],["You owe at month end",oo,1]]},
+      {type:"kv",rows:[["Billed to clients and tenants",tb,1],["Money received",tr,1],["Paid for leases",lp,1],["Paid for loans",np,1],["Net cash for the month",tr-lp-np,1],["Owed to you at month end",to,1],["Lease rent unpaid at month end",lo,1],["Loan instalments unpaid at month end",no,1]]},
       {type:"table",heading:"Money in: clients and tenants",cols:[{h:"Name"},{h:"Type"},{h:"Billed this month",m:1},{h:"Received this month",m:1},{h:"Unpaid at month end",m:1}],rows:inRows,total:["Total","",tb,tr,to],empty:"Nothing billed or received this month."},
-      {type:"table",heading:"Money out: leases and loans",cols:[{h:"Name"},{h:"Type"},{h:"Due this month",m:1},{h:"Paid this month",m:1},{h:"Unpaid at month end",m:1}],rows:outRows,total:["Total","",ob,op,oo],empty:"Nothing due or paid this month."}]};
+      {type:"table",heading:"Leases I pay",cols:[{h:"Property"},{h:"Landlord"},{h:"Rent due this month",m:1},{h:"Paid this month",m:1},{h:"Unpaid at month end",m:1}],rows:leRows,total:["Total","",lb,lp,lo],empty:"No lease rent due or paid this month."},
+      {type:"table",heading:"Loans",cols:[{h:"Loan"},{h:"Lender"},{h:"Instalment due",m:1},{h:"Paid this month",m:1},{h:"Unpaid at month end",m:1}],rows:loRows,total:["Total","",nb,np,no],empty:"No loan instalments due or paid this month."}]};
   }
   if(k==="statement"){
     var a=acc(REP.acc)||state.accounts[0];
@@ -1142,8 +1152,8 @@ function reportsView(){
   if(k==="monthly")c='<label for="rp-month">Month<input id="rp-month" type="month" value="'+REP.month+'"></label>';
   if(k==="statement"){
     var a=acc(REP.acc)||state.accounts[0];
-    var groups=[["client","Clients"],["property","Properties"],["loan","Loans"]];
-    c='<label for="rp-acc" style="min-width:240px">Client, tenant or loan<select id="rp-acc">'+groups.map(function(g){var xs=state.accounts.filter(function(x){return x.kind===g[0]});return xs.length?'<optgroup label="'+g[1]+'">'+xs.map(function(x){return '<option value="'+x.id+'"'+(a&&x.id===a.id?" selected":"")+'>'+esc(x.name)+(x.party?" · "+esc(x.party):"")+(x.closed?" (closed)":"")+'</option>'}).join("")+'</optgroup>':""}).join("")+'</select></label>'+
+    var groups=[["client","Clients"],["property","Properties I rent out"],["lease","Leases I pay"],["loan","Loans"]];
+    c='<label for="rp-acc" style="min-width:240px">Client, tenant or loan<select id="rp-acc">'+groups.map(function(g){var xs=state.accounts.filter(function(x){return grp(x)===g[0]});return xs.length?'<optgroup label="'+g[1]+'">'+xs.map(function(x){return '<option value="'+x.id+'"'+(a&&x.id===a.id?" selected":"")+'>'+esc(x.name)+(x.party?" · "+esc(x.party):"")+(x.closed?" (closed)":"")+'</option>'}).join("")+'</optgroup>':""}).join("")+'</select></label>'+
       '<label for="rp-sfrom">From<input id="rp-sfrom" type="date" value="'+(REP.sfrom||(a?a.start+"-01":""))+'"></label><label for="rp-sto">To<input id="rp-sto" type="date" value="'+REP.sto+'"></label>';
   }
   if(k==="loans")c='<label for="rp-loan" style="min-width:240px">Show<select id="rp-loan"><option value="all">All loans: summary</option>'+state.accounts.filter(function(x){return x.kind==="loan"}).map(function(x){return '<option value="'+x.id+'"'+(REP.loan===x.id?" selected":"")+'>Schedule: '+esc(x.name)+'</option>'}).join("")+'</select></label>';
