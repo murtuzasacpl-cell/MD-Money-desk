@@ -45,9 +45,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top{padding-top:env(safe-area-inset-top);position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
 .top-in{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px}
-.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.brand h1{font-size:20px}
-.brand .sub{color:var(--muted);font-size:13px}
+.brand{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.logo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.logo svg{width:18px;height:18px;flex:none}
+.hello{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hello h1{font-size:24px;line-height:1.15}
+.hello .sub{color:var(--muted);font-size:13px}
+.hello .sub b{color:var(--ink);font-weight:600}
+.brand .right{align-self:center}
 .brand .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .tabs{display:flex;gap:4px;overflow-x:auto}
 .tab{border:0;background:none;padding:8px 12px 10px;border-bottom:3px solid transparent;cursor:pointer;color:var(--muted);font-weight:600;white-space:nowrap}
@@ -146,6 +151,7 @@ tr.sect td{background:var(--bg);font-weight:600;color:var(--muted);font-size:13p
 .rp-controls label{min-width:150px}
 .rp-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .rp-head .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.rp-biz{font-family:var(--display);font-size:26px;font-weight:700;line-height:1.15;margin:4px 0 2px}
 .rp h3{font-size:15px;margin:6px 0 0}
 .rp tfoot td{font-weight:700;border-top:2px solid var(--line)}
 .rp-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
@@ -158,7 +164,11 @@ tr.sect td{background:var(--bg);font-weight:600;color:var(--muted);font-size:13p
   html,body{background:#fff!important;color:#000!important}
   #app,#modal-root{display:none!important}
   #print-root{display:block;font:11pt/1.4 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#000}
-  #print-root h1{font-size:18pt;margin:0 0 2pt}
+  #print-root .pbrand{display:flex;align-items:center;gap:5pt;font-size:8pt;color:#555;font-weight:600;margin-bottom:6pt}
+  #print-root .pbrand svg{width:11pt;height:11pt}
+  #print-root .pbiz{font-size:24pt;font-weight:800;line-height:1.1;margin:0 0 4pt}
+  #print-root h1{font-size:14pt;margin:0 0 2pt}
+  #print-root .nobiz h1{font-size:18pt}
   #print-root .sub{color:#444;margin:0 0 10pt}
   #print-root h3{font-size:12pt;margin:12pt 0 4pt}
   #print-root table{width:100%;border-collapse:collapse;font-size:9.5pt;page-break-inside:auto}
@@ -332,7 +342,7 @@ function render(){
   var lateCount={client:0,property:0,loan:0};
   rs.forEach(function(r){if(r.oldest) lateCount[r.a.kind]++});
   var tabs=[["overview","Overview"],["clients","Clients","client"],["properties","Properties","property"],["loans","Loans","loan"],["payments","All payments"],["reports","Reports"],["import","Import"],["security","Login & security"]];
-  var h='<header class="top"><div class="top-in"><div class="brand"><h1>MD Money Desk</h1><span class="sub">'+(bizName()?esc(bizName())+' · ':'')+dLabel(TODAY)+'</span>'+
+  var h='<header class="top"><div class="top-in"><div class="brand"><div class="hello"><span class="logo">'+LOGO+'MD Money Desk</span><h1>Welcome'+(personName()?', '+esc(personName()):'')+'</h1><span class="sub">'+(bizName()?'<b>'+esc(bizName())+'</b> · ':'')+'<span id="clock">'+nowText()+'</span></span></div>'+
     '<div class="right"><span class="save" id="save">'+esc(saveMsg)+'</span>'+
     '<label style="flex-direction:row;align-items:center;gap:6px">Currency <select id="cur" style="padding:4px 6px">'+["KES","USD","EUR","GBP","INR","AED","UGX","TZS","ZAR","NGN"].map(function(c){return '<option'+(c===state.currency?" selected":"")+'>'+c+'</option>'}).join("")+'</select></label>'+
     licPill()+'<button class="btn sm" data-act="backup">Backup</button>'+(SEC?'<button class="btn sm" data-act="logout">Log out</button>':'')+
@@ -352,6 +362,12 @@ function render(){
 }
 
 function bizName(){return state.profile&&state.profile.name||""}
+function personName(){var p=state.profile&&state.profile.person;if(p)return p;var u=SEC&&SEC.user||"";return u?u.charAt(0).toUpperCase()+u.slice(1):""}
+var LOGO='<svg viewBox="0 0 192 192" aria-hidden="true"><rect width="192" height="192" rx="40" fill="#0d6b73"/><rect x="46" y="52" width="100" height="88" rx="12" fill="#fff"/><rect x="60" y="70" width="60" height="10" rx="5" fill="#1f7a45"/><rect x="60" y="92" width="44" height="10" rx="5" fill="#6a5acd"/><rect x="60" y="114" width="70" height="10" rx="5" fill="#1f7a45"/></svg>';
+function nowText(){var d=new Date();var t;try{t=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}catch(e){t=pad(d.getHours())+":"+pad(d.getMinutes())}
+  var days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return days[d.getDay()]+", "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYear()+" · "+t}
+setInterval(function(){var c=document.getElementById("clock");if(c)c.textContent=nowText()},15000);
 function overview(rs){
   if(!state.accounts.length){
     return '<section class="card"><h2>Welcome'+(bizName()?', '+esc(bizName()):'')+'</h2>'+
@@ -651,7 +667,7 @@ document.addEventListener("submit",function(e){
     checkPass(document.getElementById("su2-cur").value).then(function(ok){if(!ok){document.getElementById("su2-err").textContent="Your current password is wrong.";return}SEC.user=nu;storeSec();render()});
     return;
   }
-  if(f.id==="secname"){state.profile=Object.assign({},state.profile||{},{name:document.getElementById("sn-name").value.trim().slice(0,80)});save();return}
+  if(f.id==="secname"){state.profile=Object.assign({},state.profile||{},{name:document.getElementById("sn-name").value.trim().slice(0,80),person:document.getElementById("sn-person").value.trim().slice(0,60)});save();return}
   if(f.id==="secset"){setPassForm("ss-new","ss-rep","ss-err",null);return}
   if(f.id==="secchange"){setPassForm("sc-new","sc-rep","sc-err","sc-cur");return}
   if(f.id==="secremove"){removePass();return}
@@ -725,7 +741,7 @@ function bumpIdle(){lastAct=Date.now()}
 function idleCheck(){if(SEC&&UNLOCKED&&SEC.mins>0&&Date.now()-lastAct>SEC.mins*60000)lockNow()}
 setInterval(idleCheck,30000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck()});
-function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><h1 style="font-size:24px">MD Money Desk</h1>'+inner+'</div>'}
+function lockShell(inner){document.getElementById("app").innerHTML='<div class="lic"><span class="logo">'+LOGO+'MD Money Desk</span><h1 style="font-size:24px">'+(bizName()?esc(bizName()):"Welcome")+'</h1>'+inner+'</div>'}
 function renderLogin(){
   lockShell('<section class="card"><h2 style="font-size:17px">Log in</h2>'+
     '<form class="stack" id="loginform">'+(SEC.user?'<label for="lg-user">Username<input id="lg-user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>':'')+'<label for="lg-pass">Password<input id="lg-pass" type="password" autocomplete="current-password" required></label>'+
@@ -744,12 +760,13 @@ function doLogin(){
 function renderSetup(){
   lockShell('<section class="card"><h2 style="font-size:17px">Create your login</h2>'+
     '<p class="muted" style="margin:0">Only you will be able to open your records on this device.</p>'+
-    '<form class="stack" id="setupform"><label for="su-name">Business or your name<input id="su-name" autocomplete="organization" value="'+esc(bizName())+'" placeholder="e.g. Kamau Holdings"></label>'+
+    '<form class="stack" id="setupform"><label for="su-person">Your name<input id="su-person" autocomplete="name" value="'+esc(state.profile&&state.profile.person||"")+'" placeholder="e.g. John"></label>'+
+    '<label for="su-name">Business name (shown big on reports)<input id="su-name" autocomplete="organization" value="'+esc(bizName())+'" placeholder="e.g. Kamau Holdings"></label>'+
     '<label for="su-user">Username<input id="su-user" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="e.g. kamau"></label>'+
     '<label for="su-pass">Password<input id="su-pass" type="password" autocomplete="new-password" required></label>'+
     '<label for="su-rep">Repeat password<input id="su-rep" type="password" autocomplete="new-password" required></label>'+
     '<p class="err" id="su-err"></p><div class="actions"><button class="btn primary" type="submit">Create login</button></div></form></section>');
-  var f=document.getElementById("su-user");if(f&&bizName())f.focus();else{f=document.getElementById("su-name");if(f)f.focus()}
+  var f=document.getElementById("su-person");if(f)f.focus();
 }
 function validUser(u,errEl){
   if(!/^[a-z0-9._-]{3,30}$/.test(u)){document.getElementById(errEl).textContent="Username: 3 to 30 letters or numbers, no spaces. You can use . _ and -";return false}
@@ -763,7 +780,7 @@ function doSetup(){
   SEC=SEC||null;
   newSec(p).then(function(rec){
     SEC.user=u;storeSec();
-    state.profile=Object.assign({},state.profile||{},{name:nm});
+    state.profile=Object.assign({},state.profile||{},{name:nm,person:document.getElementById("su-person").value.trim().slice(0,60)});
     UNLOCKED=true;bumpIdle();save();showRecovery(rec);
   });
 }
@@ -846,8 +863,8 @@ function securityView(){
       '<section class="card"><h2>Change username</h2><form class="form" id="secuser"><label for="su2-user">New username<input id="su2-user" autocapitalize="none" spellcheck="false" required value="'+esc(SEC.user||"")+'"></label>'+
       '<label for="su2-cur">Current password<input id="su2-cur" type="password" autocomplete="current-password" required></label>'+
       '<p class="err full" id="su2-err"></p><div class="actions full"><button class="btn primary" type="submit">Save username</button></div></form></section>'+
-      '<section class="card"><h2>Business name</h2><form class="form" id="secname"><label class="full" for="sn-name">Shown at the top and on reports<input id="sn-name" value="'+esc(bizName())+'"></label>'+
-      '<div class="actions full"><button class="btn primary" type="submit">Save name</button></div></form></section>';
+      '<section class="card"><h2>Names</h2><form class="form" id="secname"><label for="sn-person">Your name (for the welcome)<input id="sn-person" value="'+esc(state.profile&&state.profile.person||"")+'"></label><label for="sn-name">Business name (big on reports)<input id="sn-name" value="'+esc(bizName())+'"></label>'+
+      '<div class="actions full"><button class="btn primary" type="submit">Save names</button></div></form></section>';
   }
   h+='<section class="card"><div class="card-h"><h2>Licence</h2>'+licPill()+'</div><p class="muted" style="margin:0">Device code <b class="num">'+LIC.dev+'</b>. To renew, tap the licence badge and paste the new key.</p></section>';
   h+='<p class="muted" style="font-size:13px;margin:0">Your login keeps other people out of the app on this device. Keep downloading backups (Backup button), because a password does not protect you from losing the phone.</p>';
@@ -1020,7 +1037,7 @@ function amortize(a){
   return {r:r,rows:rows};
 }
 function buildReport(){
-  var k=REP.kind, gen=(bizName()?bizName()+" · ":"")+"Made "+dLabel(new Date());
+  var k=REP.kind, gen="Made "+nowText().replace(" · "," at ");
   if(k==="daily"){
     var f=REP.from||ymd(TODAY),t=REP.to||f;if(t<f){var x=f;f=t;t=x}
     var ps=state.payments.filter(function(p){return p.date>=f&&p.date<=t&&acc(p.acc)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
@@ -1103,7 +1120,7 @@ function reportHtml(R,forPrint){
 }
 function printReport(R){
   var pr=document.getElementById("print-root");
-  pr.innerHTML='<h1>'+esc(R.title)+'</h1><p class="sub">'+esc(R.sub)+' · Amounts in '+esc(state.currency)+'</p>'+reportHtml(R,true)+'<p class="foot">MD Money Desk</p>';
+  pr.innerHTML='<div class="'+(bizName()?"":"nobiz")+'"><div class="pbrand">'+LOGO+'MD Money Desk</div>'+(bizName()?'<div class="pbiz">'+esc(bizName())+'</div>':'')+'<h1>'+esc(R.title)+'</h1><p class="sub">'+esc(R.sub)+' · Amounts in '+esc(state.currency)+'</p>'+reportHtml(R,true)+'</div>';
   var old=document.title;document.title=R.file;
   setTimeout(function(){try{window.print()}catch(e){}document.title=old},50);
 }
@@ -1123,7 +1140,7 @@ function reportsView(){
   return '<section class="card rp"><div class="card-h"><h2>Reports</h2></div>'+
     '<div class="filters">'+["daily","monthly","statement","loans"].map(function(x){return '<button class="chip" data-act="rp-kind" data-k="'+x+'" aria-pressed="'+(k===x)+'">'+names[x]+'</button>'}).join("")+'</div>'+
     '<div class="rp-controls">'+c+'</div></section>'+
-    '<section class="card rp"><div class="rp-head"><div><h2>'+esc(R.title)+'</h2><span class="muted" style="font-size:13px">'+esc(R.sub)+'</span></div>'+
+    '<section class="card rp"><div class="rp-head"><div><span class="logo">'+LOGO+'MD Money Desk</span>'+(bizName()?'<div class="rp-biz">'+esc(bizName())+'</div>':'')+'<h2>'+esc(R.title)+'</h2><span class="muted" style="font-size:13px">'+esc(R.sub)+'</span></div>'+
     '<div class="right"><button class="btn" data-act="rp-xlsx">Download Excel</button><button class="btn primary" data-act="rp-print">Print or save as PDF</button></div></div>'+
     reportHtml(R,false)+'</section>';
 }
@@ -1159,6 +1176,7 @@ function makeXlsx(R){
   var rows=[],widths=[];
   function add(cells){rows.push(cells)}
   function w(i,v){var l=String(v==null?"":v).length+2;widths[i]=Math.min(50,Math.max(widths[i]||10,l))}
+  add([{v:"MD Money Desk",s:5}]);if(bizName())add([{v:bizName(),s:6}]);
   add([{v:R.title,s:4}]);add([{v:R.sub+" · Amounts in "+state.currency,s:5}]);add([]);
   R.blocks.forEach(function(b){
     if(b.type==="note"){add([{v:b.text}]);return}
@@ -1172,17 +1190,18 @@ function makeXlsx(R){
   var sd=rows.map(function(r,ri){
     var cs=r.map(function(c,ci){if(!c)return "";var ref=colName(ci)+(ri+1);
       return c.n?'<c r="'+ref+'" s="'+(c.s||0)+'"><v>'+c.v+'</v></c>':'<c r="'+ref+'" s="'+(c.s||0)+'" t="inlineStr"><is><t xml:space="preserve">'+xe(c.v)+'</t></is></c>'}).join("");
-    return '<row r="'+(ri+1)+'">'+cs+'</row>'}).join("");
+    var big=r[0]&&r[0].s===6;
+    return '<row r="'+(ri+1)+'"'+(big?' ht="30" customHeight="1"':'')+'>'+cs+'</row>'}).join("");
   var cols=widths.map(function(x,i){return '<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(x||10)+'" customWidth="1"/>'}).join("");
   var sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews>'+(cols?'<cols>'+cols+'</cols>':'')+'<sheetData>'+sd+'</sheetData><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>';
   var styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
-    '<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="15"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF666666"/><name val="Calibri"/></font></fonts>'+
+    '<fonts count="5"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="15"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF666666"/><name val="Calibri"/></font><font><b/><sz val="22"/><name val="Calibri"/></font></fonts>'+
     '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'+
     '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
-    '<cellXfs count="6"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+    '<cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
     '<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="3" fontId="1" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1"/>'+
-    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'+
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'+
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   var sname=R.title.replace(/[\[\]\:\*\?\/\\]/g," ").slice(0,31);
   return zipStore([
