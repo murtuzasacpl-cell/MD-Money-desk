@@ -386,7 +386,7 @@ function render(){
 
 function bizName(){return state.profile&&state.profile.name||""}
 function personName(){var p=state.profile&&state.profile.person;if(p)return p;var u=SEC&&SEC.user||"";return u?u.charAt(0).toUpperCase()+u.slice(1):""}
-var APP_VERSION="2.0", APP_DATE="11 Nov 2026";
+var APP_VERSION="2.1", APP_DATE="11 Nov 2026";
 var LOGO='<svg viewBox="0 0 192 192" aria-hidden="true"><rect width="192" height="192" rx="40" fill="#0d6b73"/><rect x="46" y="52" width="100" height="88" rx="12" fill="#fff"/><rect x="60" y="70" width="60" height="10" rx="5" fill="#1f7a45"/><rect x="60" y="92" width="44" height="10" rx="5" fill="#6a5acd"/><rect x="60" y="114" width="70" height="10" rx="5" fill="#1f7a45"/></svg>';
 function nowText(){var d=new Date();var t;try{t=d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}catch(e){t=pad(d.getHours())+":"+pad(d.getMinutes())}
   var days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],months=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -1282,8 +1282,8 @@ function syncDialog(msg){
   modal('<div class="dialog-h"><h2>Sync with my other device</h2><button class="btn sm x" data-act="close">Close</button></div>'+
     '<p class="muted" style="margin:0">Keep this phone and your computer the same, without the internet. Send a sync file from one device and receive it on the other. Records are joined together, nothing is overwritten. Do it both ways so both devices end up the same.</p>'+
     '<section class="card" style="gap:10px"><h3 style="font-size:15px;margin:0">1. Send from this device</h3>'+
-    (state.sample?'<p class="err" style="margin:0">This device only has example entries. Clear them and add your real records first.</p>':
-    '<p class="muted" style="margin:0;font-size:14px">'+(canShare?'Share the file to yourself on WhatsApp, Bluetooth, email or Google Drive.':'Download the file, then move it to your other device (WhatsApp, email, Google Drive or USB).')+'</p>'+
+    (state.sample?'<p class="banner" style="margin:0;font-size:14px"><b>Test mode:</b> this device has example entries. You can sync them to try it out. Clear them before real use.</p>':'')+
+    ('<p class="muted" style="margin:0;font-size:14px">'+(canShare?'Share the file to yourself on WhatsApp, Bluetooth, email or Google Drive.':'Download the file, then move it to your other device (WhatsApp, email, Google Drive or USB).')+'</p>'+
     '<div class="actions" style="justify-content:flex-start">'+(canShare?'<button class="btn primary" data-act="sync-share">Share sync file</button><button class="btn" data-act="sync-download">Download instead</button>':'<button class="btn primary" data-act="sync-download">Download sync file</button>')+'</div>')+
     '<p class="hint" style="margin:0">Last sent: '+agoText(i.sent)+'</p></section>'+
     '<section class="card" style="gap:10px"><h3 style="font-size:15px;margin:0">2. Receive on this device</h3>'+
@@ -1292,11 +1292,10 @@ function syncDialog(msg){
     '<p class="hint" style="margin:0">Each device keeps its own licence key and login. The sync file carries only your money records, never passwords. Keep it private: anyone with the file can read your records.</p>');
 }
 function syncPayload(){
-  return {app:"md-money-desk-sync",v:1,made:new Date().toISOString(),from:LIC.dev,biz:bizName(),currency:state.currency,profile:state.profile||null,mu:state.mu||0,
+  return {app:"md-money-desk-sync",v:1,sample:!!state.sample,made:new Date().toISOString(),from:LIC.dev,biz:bizName(),currency:state.currency,profile:state.profile||null,mu:state.mu||0,
     accounts:state.accounts,payments:state.payments,deleted:state.deleted||{}};
 }
 function syncSend(share){
-  if(state.sample)return;
   save();
   var d=new Date(),stampTxt=d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"-"+pad(d.getHours())+pad(d.getMinutes());
   var name="MD-Money-Desk-sync-"+(bizName()?bizName().replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,30)+"-":"")+stampTxt+".txt";
@@ -1323,12 +1322,15 @@ function syncPreview(txt){
   var other=d.biz&&bizName()&&d.biz.trim().toLowerCase()!==bizName().trim().toLowerCase();
   box.innerHTML='<div class="kv"><div><span>From</span><b>'+esc(d.biz||"(no business name)")+'</b></div><div><span>Made</span><b>'+(d.made?esc(dLabel(new Date(d.made))):(d.backup?"Backup file":"-"))+'</b></div><div><span>Records</span><b class="num">'+d.accounts.length+' · '+d.payments.length+' payments</b></div></div>'+
     (other?'<p class="err" style="margin:0">This file is from <b>'+esc(d.biz)+'</b>, but this device belongs to <b>'+esc(bizName())+'</b>. Only merge if both are really yours.</p>':'')+
-    '<div class="actions" style="justify-content:flex-start"><button class="btn primary" data-act="sync-merge">'+(other?"Merge anyway":"Merge into this device")+'</button></div>';
+    (d.sample&&!state.sample?'<p class="err" style="margin:0">This file has <b>example entries</b>. Merging adds them to your real records on this device.</p>':'')+
+    (d.sample&&state.sample?'<p class="hint" style="margin:0">Test mode: both devices have example entries.</p>':'')+
+    '<div class="actions" style="justify-content:flex-start"><button class="btn primary" data-act="sync-merge">'+(other||(d.sample&&!state.sample)?"Merge anyway":"Merge into this device")+'</button></div>';
 }
 function syncMerge(){
   var d=SYNC_IN;if(!d)return;
   save();
-  if(state.sample){state={currency:state.currency,profile:state.profile,sample:false,accounts:[],payments:[]}}
+  var wasSample=!!state.sample;
+  if(wasSample&&!d.sample){state={currency:state.currency,profile:state.profile,sample:false,accounts:[],payments:[],deleted:state.deleted||{}}}
   var del=Object.assign({},state.deleted||{});
   Object.keys(d.deleted||{}).forEach(function(id){if(!(del[id]>=d.deleted[id]))del[id]=d.deleted[id]});
   var added=0,updated=0,removed=0;
@@ -1348,7 +1350,7 @@ function syncMerge(){
   state.payments=state.payments.filter(function(p){return ids[p.acc]});
   state.deleted=del;
   if((d.mu||0)>(state.mu||0)){if(d.currency)state.currency=d.currency;if(d.profile)state.profile=d.profile;state.mu=d.mu}
-  state.sample=false;
+  state.sample=wasSample&&!!d.sample;
   SYNC_IN=null;syncNote("got");
   save(true);
   syncDialog('<p class="banner" style="margin:0"><b>Done.</b> '+added+' added, '+updated+' updated, '+removed+' removed. To make your other device the same, send a sync file back from this device.</p>');
